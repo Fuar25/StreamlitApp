@@ -53,7 +53,7 @@ def run_video_frame_extraction_page():
             st.success(f"抽帧完成！共抽取了{frame_count // frame_interval}帧。")
 
             # 显示部分抽帧结果
-            for i in range(5):  # 显示前5张图片作为示例
+            for i in range(frame_count // frame_interval):
                 img_path = os.path.join(output_folder, f'frame_{i * frame_interval}.jpg')
                 if os.path.exists(img_path):
                     img = Image.open(img_path)
@@ -64,5 +64,4 @@ def run_video_frame_extraction_page():
         else:
             st.warning("请先上传视频文件！")
 
-if __name__ == "__main__":
-    run_video_frame_extraction_page()
+
