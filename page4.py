@@ -13,6 +13,16 @@ def calculate_brightness(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     return np.mean(gray)
 
+def color_histogram_complexity(image):
+    hist = cv2.calcHist([image], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+    hist = cv2.normalize(hist, hist).flatten()
+    entropy = shannon_entropy(hist)
+    return entropy
+
+def shannon_entropy(hist):
+    hist = np.where(hist != 0, hist, 1e-12)  # 避免除零错误
+    return -np.sum(hist * np.log2(hist))
+
 def is_image_too_dark(image, threshold=70):
     """判断图片是否太暗"""
     avg = np.mean(image)
@@ -23,11 +33,49 @@ def is_image_too_light(image, threshold=220):
     avg = np.mean(image)
     return avg > threshold
 
+def compare_images(image1_path, image2_path, threshold=1000):
+    """
+    比较两幅图片的相似度
+    :param image1_path: 图片1路径
+    :param image2_path: 图片2路径
+    :param threshold: 相似度阈值
+    :return: True 如果图片相似，否则 False
+    """
+    img1 = cv2.imread(image1_path)
+    img2 = cv2.imread(image2_path)
+
+    diff = np.sum((img1.astype("float") - img2.astype("float")) ** 2)
+    mse = diff / (img1.shape[0] * img1.shape[1] * 3)
+
+    return mse < threshold
+
+def delete_similar_images(directory, threshold=1000):
+    """
+    删除目录中高度相似的图片
+    :param directory: 图片所在目录
+    :param threshold: 相似度阈值
+    """
+    images = [f for f in os.listdir(directory) if f.endswith('.jpg') or f.endswith('.png')]
+    images_num = list(range(len(images)))
+
+    for i in images_num:
+        for j in range(i + 1, len(images)):
+            image1_path = os.path.join(directory, images[i])
+            image2_path = os.path.join(directory, images[j])
+
+            if compare_images(image1_path, image2_path, threshold):
+                print(f"Deleting {image2_path}")
+                os.remove(image2_path)
+
+        images = [f for f in os.listdir(directory) if f.endswith('.jpg') or f.endswith('.png')]
+        images_num = list(range(len(images)))
+
 def process_images(folder_path):
-    """处理文件夹中的所有图片，删除不符合条件的图片"""
+    """处理文件夹中的所有图片，删除不符合条件的图片，并重命名符合条件的图片"""
     images = [f for f in os.listdir(folder_path) if f.endswith(('.png', '.jpg', '.jpeg'))]
     total_images = len(images)
     valid_images = []
+    valid_image_count = 0
 
     progress_bar = st.progress(0)
     status_text = st.empty()
@@ -42,12 +90,8 @@ def process_images(folder_path):
         # 转为灰度图以简化清晰度检测
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # 检查图片是否太暗
-        if is_image_too_dark(gray):
-            os.remove(image_path)
-            continue
-
-        if is_image_too_light(gray):
+        # 检查图片是否太暗或太亮
+        if (is_image_too_dark(gray) or is_image_too_light(gray)):
             os.remove(image_path)
             continue
 
@@ -55,12 +99,18 @@ def process_images(folder_path):
         fm = variance_of_laplacian(gray)
 
         # 设置清晰度阈值
-        if fm < 32:  # 这个值可以根据实际情况调整
+        if fm < 37:  # 这个值可以根据实际情况调整
             os.remove(image_path)
             continue
 
         # 将符合条件的图片添加到列表中
         valid_images.append((image_file, image))
+        valid_image_count += 1
+
+        # 重命名图片
+        new_image_name = f"{valid_image_count}.jpg"
+        new_image_path = os.path.join(folder_path, new_image_name)
+        os.rename(image_path, new_image_path)
 
         # 更新进度条
         progress = (i + 1) / total_images
@@ -81,6 +131,9 @@ def run_image_selection_page():
             # 显示进度条
             st.write("开始处理图片...")
             valid_images = process_images(folder_path)
+
+            # 删除相似图片
+            delete_similar_images(folder_path, threshold=1200)
 
             # 展示符合条件的图片
             st.write("符合条件的图片：")

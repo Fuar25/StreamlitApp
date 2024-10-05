@@ -4,7 +4,7 @@ from page2 import run_video_frame_prediction_page
 from page3 import run_video_frame_extraction_page
 from page4 import run_image_selection_page
 from page5 import run_model_visualization_page
-from page6 import run_image_parameter_page
+from page6 import run_image_analysis_page
 
 
 # Streamlit 应用标题
@@ -20,7 +20,7 @@ elif page ==  "视频抽帧":
 elif page ==  "逐帧筛选":
     run_image_selection_page()
 elif page ==  "图片参数":
-    run_image_parameter_page()
+    run_image_analysis_page()
 elif page ==  "模型训练":
     run_model_visualization_page()
 
